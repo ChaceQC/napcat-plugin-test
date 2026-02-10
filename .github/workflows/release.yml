@@ -64,7 +64,7 @@ jobs:
 
       - name: Prepare release package
         env:
-          PLUGIN_NAME: napcat-plugin-template
+          PLUGIN_NAME: napcat-plugin-auto-to-like
         run: |
           # 创建临时目录用于组织文件
           mkdir -p release
