@@ -1,3 +1,4 @@
+
 /**
  * 全局状态管理模块（单例模式）
  *
@@ -35,6 +36,18 @@ function sanitizeConfig(raw: unknown): PluginConfig {
     if (typeof raw.debug === 'boolean') out.debug = raw.debug;
     if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
     if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
+
+    if (typeof raw.autoLikeEnabled === 'boolean') out.autoLikeEnabled = raw.autoLikeEnabled;
+    if (typeof raw.vipLikeLimit === 'number') out.vipLikeLimit = raw.vipLikeLimit;
+    
+    if (Array.isArray(raw.blacklist)) {
+        out.blacklist = raw.blacklist.filter((id): id is number => typeof id === 'number');
+    } else if (typeof raw.blacklist === 'string') {
+        // Handle string input from UI (comma separated)
+        out.blacklist = raw.blacklist.split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => !isNaN(n));
+    }
 
     // 群配置清洗
     if (isObject(raw.groupConfigs)) {
@@ -78,6 +91,10 @@ class PluginState {
         lastUpdateDay: new Date().toDateString(),
     };
 
+    /** VIP 用户点赞计数 (每日重置) */
+    vipLikeCounts: Record<number, number> = {};
+    lastVipLikeResetDay: string = new Date().toDateString();
+
     /** 获取上下文（确保已初始化） */
     get ctx(): NapCatPluginContext {
         if (!this._ctx) throw new Error('PluginState 尚未初始化，请先调用 init()');
@@ -100,6 +117,10 @@ class PluginState {
         this.loadConfig();
         this.ensureDataDir();
         this.fetchSelfId();
+        
+        // Load VIP like counts if persisted, or just init
+        this.vipLikeCounts = this.loadDataFile('vip_likes.json', {});
+        this.checkVipLikeReset();
     }
 
     /**
@@ -130,6 +151,7 @@ class PluginState {
         }
         this.timers.clear();
         this.saveConfig();
+        this.saveDataFile('vip_likes.json', this.vipLikeCounts);
         this._ctx = null;
     }
 
@@ -231,6 +253,14 @@ class PluginState {
      * 合并更新配置
      */
     updateConfig(partial: Partial<PluginConfig>): void {
+        // Handle blacklist string update from UI
+        if ('blacklist' in partial && typeof partial.blacklist === 'string') {
+             const str = partial.blacklist as string;
+             partial.blacklist = str.split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(n => !isNaN(n));
+        }
+        
         this.config = { ...this.config, ...partial };
         this.saveConfig();
     }
@@ -274,6 +304,34 @@ class PluginState {
         }
         this.stats.todayProcessed++;
         this.stats.processed++;
+    }
+
+    // ==================== VIP Like Management ====================
+
+    private checkVipLikeReset() {
+        const today = new Date().toDateString();
+        if (this.lastVipLikeResetDay !== today) {
+            this.vipLikeCounts = {};
+            this.lastVipLikeResetDay = today;
+            this.saveDataFile('vip_likes.json', this.vipLikeCounts);
+        }
+    }
+
+    getVipLikeCount(userId: number): number {
+        this.checkVipLikeReset();
+        return this.vipLikeCounts[userId] || 0;
+    }
+
+    incrementVipLikeCount(userId: number): void {
+        this.checkVipLikeReset();
+        this.vipLikeCounts[userId] = (this.vipLikeCounts[userId] || 0) + 1;
+        this.saveDataFile('vip_likes.json', this.vipLikeCounts);
+    }
+
+    // ==================== API Helper ====================
+    
+    async callApi(action: string, params: any): Promise<any> {
+        return this.ctx.actions.call(action, params, this.ctx.adapterName, this.ctx.pluginManager.config);
     }
 
     // ==================== 工具方法 ====================

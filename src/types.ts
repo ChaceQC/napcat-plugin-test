@@ -1,3 +1,4 @@
+
 /**
  * 类型定义文件
  * 定义插件内部使用的接口和类型
@@ -24,7 +25,13 @@ export interface PluginConfig {
     cooldownSeconds: number;
     /** 按群的单独配置 */
     groupConfigs: Record<string, GroupConfig>;
-    // TODO: 在这里添加你的插件配置项
+    
+    /** 是否启用自动回赞 */
+    autoLikeEnabled: boolean;
+    /** 用户黑名单 */
+    blacklist: number[];
+    /** VIP用户回赞次数限制 */
+    vipLikeLimit: number;
 }
 
 /**
@@ -48,4 +55,14 @@ export interface ApiResponse<T = unknown> {
     message?: string;
     /** 响应数据（仅成功时返回） */
     data?: T;
+}
+
+// ==================== 插件状态 ====================
+
+/**
+ * 插件运行时状态
+ */
+export interface PluginState {
+    /** VIP 用户点赞计数 */
+    vipLikeCounts: Record<number, number>;
 }

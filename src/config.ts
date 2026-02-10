@@ -1,3 +1,4 @@
+
 /**
  * 插件配置模块
  * 定义默认配置值和 WebUI 配置 Schema
@@ -13,7 +14,9 @@ export const DEFAULT_CONFIG: PluginConfig = {
     commandPrefix: '#cmd',
     cooldownSeconds: 60,
     groupConfigs: {},
-    // TODO: 在这里添加你的默认配置值
+    autoLikeEnabled: true,
+    blacklist: [],
+    vipLikeLimit: 10,
 };
 
 /**
@@ -34,8 +37,8 @@ export function buildConfigSchema(ctx: NapCatPluginContext): PluginConfigSchema 
         // 插件信息头部
         ctx.NapCatConfig.html(`
             <div style="padding: 16px; background: #FB7299; border-radius: 12px; margin-bottom: 20px; color: white;">
-                <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 600;">插件模板</h3>
-                <p style="margin: 0; font-size: 13px; opacity: 0.85;">NapCat 插件开发模板，请根据需要修改配置</p>
+                <h3 style="margin: 0 0 6px 0; font-size: 18px; font-weight: 600;">自动回赞插件</h3>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">自动回赞，支持会员限制和黑名单</p>
             </div>
         `),
         // 全局开关
@@ -45,7 +48,12 @@ export function buildConfigSchema(ctx: NapCatPluginContext): PluginConfigSchema 
         // 命令前缀
         ctx.NapCatConfig.text('commandPrefix', '命令前缀', '#cmd', '触发命令的前缀，默认为 #cmd'),
         // 冷却时间
-        ctx.NapCatConfig.number('cooldownSeconds', '冷却时间（秒）', 60, '同一命令请求冷却时间，0 表示不限制')
-        // TODO: 在这里添加你的配置项
+        ctx.NapCatConfig.number('cooldownSeconds', '冷却时间（秒）', 60, '同一命令请求冷却时间，0 表示不限制'),
+        
+        // 自动回赞配置
+        ctx.NapCatConfig.boolean('autoLikeEnabled', '启用自动回赞', true, '是否启用自动回赞功能'),
+        ctx.NapCatConfig.number('vipLikeLimit', 'VIP回赞限制', 10, 'VIP用户每日回赞次数限制'),
+        // 黑名单配置 (Assuming text input for now, comma separated)
+        ctx.NapCatConfig.text('blacklist', '黑名单用户ID', '', '黑名单用户ID，多个ID用逗号分隔')
     );
 }
