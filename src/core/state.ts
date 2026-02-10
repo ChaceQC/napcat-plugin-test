@@ -28,14 +28,12 @@ function isObject(v: unknown): v is Record<string, unknown> {
  * 确保从文件读取的配置符合预期类型，防止运行时错误
  */
 function sanitizeConfig(raw: unknown): PluginConfig {
-    if (!isObject(raw)) return { ...DEFAULT_CONFIG, groupConfigs: {} };
+    if (!isObject(raw)) return { ...DEFAULT_CONFIG };
 
-    const out: PluginConfig = { ...DEFAULT_CONFIG, groupConfigs: {} };
+    const out: PluginConfig = { ...DEFAULT_CONFIG };
 
     if (typeof raw.enabled === 'boolean') out.enabled = raw.enabled;
     if (typeof raw.debug === 'boolean') out.debug = raw.debug;
-    if (typeof raw.commandPrefix === 'string') out.commandPrefix = raw.commandPrefix;
-    if (typeof raw.cooldownSeconds === 'number') out.cooldownSeconds = raw.cooldownSeconds;
 
     if (typeof raw.autoLikeEnabled === 'boolean') out.autoLikeEnabled = raw.autoLikeEnabled;
     if (typeof raw.vipLikeLimit === 'number') out.vipLikeLimit = raw.vipLikeLimit;
@@ -47,18 +45,6 @@ function sanitizeConfig(raw: unknown): PluginConfig {
         out.blacklist = raw.blacklist.split(',')
             .map(s => parseInt(s.trim(), 10))
             .filter(n => !isNaN(n));
-    }
-
-    // 群配置清洗
-    if (isObject(raw.groupConfigs)) {
-        for (const [groupId, groupConfig] of Object.entries(raw.groupConfigs)) {
-            if (isObject(groupConfig)) {
-                const cfg: GroupConfig = {};
-                if (typeof groupConfig.enabled === 'boolean') cfg.enabled = groupConfig.enabled;
-                // TODO: 在这里添加你的群配置项清洗
-                out.groupConfigs[groupId] = cfg;
-            }
-        }
     }
 
     // TODO: 在这里添加你的配置项清洗逻辑
@@ -221,13 +207,13 @@ class PluginState {
                 }
                 this.ctx.logger.debug('已加载本地配置');
             } else {
-                this.config = { ...DEFAULT_CONFIG, groupConfigs: {} };
+                this.config = { ...DEFAULT_CONFIG };
                 this.saveConfig();
                 this.ctx.logger.debug('配置文件不存在，已创建默认配置');
             }
         } catch (error) {
             this.ctx.logger.error('加载配置失败，使用默认配置:', error);
-            this.config = { ...DEFAULT_CONFIG, groupConfigs: {} };
+            this.config = { ...DEFAULT_CONFIG };
         }
     }
 
@@ -273,24 +259,6 @@ class PluginState {
         this.saveConfig();
     }
 
-    /**
-     * 更新指定群的配置
-     */
-    updateGroupConfig(groupId: string, config: Partial<GroupConfig>): void {
-        this.config.groupConfigs[groupId] = {
-            ...this.config.groupConfigs[groupId],
-            ...config,
-        };
-        this.saveConfig();
-    }
-
-    /**
-     * 检查群是否启用（默认启用，除非明确设置为 false）
-     */
-    isGroupEnabled(groupId: string): boolean {
-        return this.config.groupConfigs[groupId]?.enabled !== false;
-    }
-
     // ==================== 统计 ====================
 
     /**
@@ -331,6 +299,7 @@ class PluginState {
     // ==================== API Helper ====================
     
     async callApi(action: string, params: any): Promise<any> {
+        // @ts-ignore
         return this.ctx.actions.call(action, params, this.ctx.adapterName, this.ctx.pluginManager.config);
     }
 
