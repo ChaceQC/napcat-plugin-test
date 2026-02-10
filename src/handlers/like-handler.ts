@@ -132,7 +132,21 @@ export async function handleLike(ctx: NapCatPluginContext, event: any) {
         // 6. 更新计数
         pluginState.incrementVipLikeCount(Number(user_id));
 
-    } catch (error) {
-        logger.error(`回戳/回赞用户 ${user_id} 失败:`, error);
+    } catch (error: any) {
+        const errMsg = error?.message || String(error);
+        
+        // 特殊处理 "No data returned" 错误 (send_like 成功但无返回)
+        if (errMsg.includes('No data returned')) {
+            logger.info(`已回赞用户 ${user_id} ${times} 次 (API无返回值，视为成功)`);
+            pluginState.incrementVipLikeCount(Number(user_id));
+        } 
+        // 特殊处理 "packetBackend不可用" 错误 (group_poke 失败)
+        else if (errMsg.includes('packetBackend不可用')) {
+            logger.warn(`回戳失败: NapCat packetBackend 未配置或不可用。请检查 NapCat 配置以启用戳一戳功能。`);
+            // 不更新计数，因为实际上失败了
+        }
+        else {
+            logger.error(`回戳/回赞用户 ${user_id} 失败:`, error);
+        }
     }
 }
