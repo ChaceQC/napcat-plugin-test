@@ -80,7 +80,7 @@ jobs:
 
       - name: Verify zip contents
         run: |
-          PLUGIN_NAME="napcat-plugin-template"
+          PLUGIN_NAME="napcat-plugin-auto-to-like"
           unzip -l ${PLUGIN_NAME}.zip
 
       - name: Collect git log
