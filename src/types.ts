@@ -26,6 +26,15 @@ export interface PluginConfig {
     blacklist: number[];
     /** VIP用户回赞次数限制 */
     vipLikeLimit: number;
+    
+    /** 是否启用自动赞某人 */
+    autoLikeSomeoneEnabled: boolean;
+    /** 自动赞的用户ID列表 */
+    autoLikeUsers: number[];
+    /** 自动赞的频率（分钟） */
+    autoLikeInterval: number;
+    /** 每次自动赞的次数 */
+    autoLikeTimes: number;
 }
 
 /**

@@ -47,7 +47,19 @@ function sanitizeConfig(raw: unknown): PluginConfig {
             .filter(n => !isNaN(n));
     }
 
-    // TODO: 在这里添加你的配置项清洗逻辑
+    // 自动赞某人配置
+    if (typeof raw.autoLikeSomeoneEnabled === 'boolean') out.autoLikeSomeoneEnabled = raw.autoLikeSomeoneEnabled;
+    if (typeof raw.autoLikeInterval === 'number') out.autoLikeInterval = raw.autoLikeInterval;
+    if (typeof raw.autoLikeTimes === 'number') out.autoLikeTimes = raw.autoLikeTimes;
+    
+    if (Array.isArray(raw.autoLikeUsers)) {
+        out.autoLikeUsers = raw.autoLikeUsers.filter((id): id is number => typeof id === 'number');
+    } else if (typeof raw.autoLikeUsers === 'string') {
+        // Handle string input from UI (comma separated)
+        out.autoLikeUsers = raw.autoLikeUsers.split(',')
+            .map(s => parseInt(s.trim(), 10))
+            .filter(n => !isNaN(n));
+    }
 
     return out;
 }
@@ -107,6 +119,9 @@ class PluginState {
         // Load VIP like counts if persisted, or just init
         this.vipLikeCounts = this.loadDataFile('vip_likes.json', {});
         this.checkVipLikeReset();
+        
+        // 启动自动赞定时器
+        this.startAutoLikeTimer();
     }
 
     /**
@@ -247,8 +262,19 @@ class PluginState {
                 .filter(n => !isNaN(n));
         }
         
+        // Handle autoLikeUsers string update from UI
+        if ('autoLikeUsers' in partial && typeof partial.autoLikeUsers === 'string') {
+            const str = partial.autoLikeUsers as string;
+            partial.autoLikeUsers = str.split(',')
+                .map(s => parseInt(s.trim(), 10))
+                .filter(n => !isNaN(n));
+        }
+        
         this.config = { ...this.config, ...partial };
         this.saveConfig();
+        
+        // 重新启动自动赞定时器
+        this.restartAutoLikeTimer();
     }
 
     /**
@@ -322,6 +348,87 @@ class PluginState {
         if (h > 0) return `${h}小时${m % 60}分钟`;
         if (m > 0) return `${m}分钟${s % 60}秒`;
         return `${s}秒`;
+    }
+
+    // ==================== 自动赞某人 ====================
+
+    /**
+     * 启动自动赞定时器
+     */
+    startAutoLikeTimer(): void {
+        // 先停止现有定时器
+        this.stopAutoLikeTimer();
+        
+        // 检查是否启用自动赞某人
+        if (!this.config.autoLikeSomeoneEnabled || this.config.autoLikeUsers.length === 0) {
+            return;
+        }
+        
+        // 设置定时器
+        const interval = this.config.autoLikeInterval * 60 * 1000; // 转换为毫秒
+        const timer = setInterval(() => {
+            this.executeAutoLike();
+        }, interval);
+        
+        this.timers.set('autoLike', timer);
+        this.logger.info(`自动赞定时器已启动，间隔 ${this.config.autoLikeInterval} 分钟`);
+    }
+
+    /**
+     * 停止自动赞定时器
+     */
+    stopAutoLikeTimer(): void {
+        if (this.timers.has('autoLike')) {
+            clearInterval(this.timers.get('autoLike')!);
+            this.timers.delete('autoLike');
+            this.logger.info('自动赞定时器已停止');
+        }
+    }
+
+    /**
+     * 重新启动自动赞定时器
+     */
+    restartAutoLikeTimer(): void {
+        this.startAutoLikeTimer();
+    }
+
+    /**
+     * 执行自动赞
+     */
+    private async executeAutoLike(): Promise<void> {
+        if (!this.config.autoLikeSomeoneEnabled || this.config.autoLikeUsers.length === 0) {
+            return;
+        }
+        
+        const times = this.config.autoLikeTimes;
+        
+        for (const userId of this.config.autoLikeUsers) {
+            try {
+                await this.callApi('send_like', { user_id: String(userId), times });
+                this.logger.info(`已自动赞用户 ${userId} ${times} 次`);
+                
+                // 增加处理计数
+                this.incrementProcessed();
+                
+                // 避免频繁调用API被限制，每次赞后暂停1秒
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            } catch (error: any) {
+                const errMsg = error?.message || String(error);
+                if (errMsg.includes('No data returned')) {
+                    this.logger.info(`已自动赞用户 ${userId} ${times} 次 (API无返回值，视为成功)`);
+                    this.incrementProcessed();
+                } else {
+                    this.logger.error(`自动赞用户 ${userId} 失败:`, error);
+                }
+            }
+        }
+    }
+
+    /**
+     * 立即执行一次自动赞
+     */
+    async executeAutoLikeNow(): Promise<void> {
+        await this.executeAutoLike();
     }
 }
 
