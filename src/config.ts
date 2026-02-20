@@ -14,6 +14,10 @@ export const DEFAULT_CONFIG: PluginConfig = {
     autoLikeEnabled: true,
     blacklist: [],
     vipLikeLimit: 10,
+    autoLikeSomeoneEnabled: false,
+    autoLikeUsers: [],
+    autoLikeInterval: 1440,
+    autoLikeTimes: 10,
 };
 
 /**
@@ -47,6 +51,18 @@ export function buildConfigSchema(ctx: NapCatPluginContext): PluginConfigSchema 
         ctx.NapCatConfig.boolean('autoLikeEnabled', '启用自动回赞', true, '是否启用自动回赞功能'),
         ctx.NapCatConfig.number('vipLikeLimit', 'VIP回赞限制', 10, 'VIP用户每日回赞次数限制'),
         // 黑名单配置 (Assuming text input for now, comma separated)
-        ctx.NapCatConfig.text('blacklist', '黑名单用户ID', '', '黑名单用户ID，多个ID用逗号分隔')
+        ctx.NapCatConfig.text('blacklist', '黑名单用户ID', '', '黑名单用户ID，多个ID用逗号分隔'),
+        
+        // 自动赞某人配置
+        ctx.NapCatConfig.html(`
+            <div style="padding: 16px; background: #4CAF50; border-radius: 12px; margin: 20px 0; color: white;">
+                <h4 style="margin: 0 0 6px 0; font-size: 16px; font-weight: 600;">自动赞某人设置</h4>
+                <p style="margin: 0; font-size: 13px; opacity: 0.85;">定期自动给指定用户点赞</p>
+            </div>
+        `),
+        ctx.NapCatConfig.boolean('autoLikeSomeoneEnabled', '启用自动赞某人', false, '是否启用自动赞某人功能'),
+        ctx.NapCatConfig.text('autoLikeUsers', '自动赞用户ID', '', '自动赞的用户ID，多个ID用逗号分隔'),
+        ctx.NapCatConfig.number('autoLikeInterval', '自动赞间隔', 1440, '自动赞的间隔时间（分钟）'),
+        ctx.NapCatConfig.number('autoLikeTimes', '每次点赞次数', 10, '每次自动赞的次数')
     );
 }
